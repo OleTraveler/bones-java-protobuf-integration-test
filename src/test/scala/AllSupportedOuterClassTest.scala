@@ -3,8 +3,7 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.math.BigDecimal
 import java.nio.charset.Charset
-import java.time.LocalDate
-import java.time.LocalDateTime
+import java.time.{LocalDate, LocalDateTime, ZoneOffset}
 import java.util.{Base64, Date, UUID}
 
 import com.bones.protobuf.{ProtobufSequentialInputInterpreter, ProtobufSequentialOutputInterpreter}
@@ -35,10 +34,12 @@ class AllSupportedOuterClassTest extends FunSuite with MustMatchers {
     build.setByteArray(bs)
     val epochDay = LocalDate.of(2018, 1, 1)
     build.setLocalDate(epochDay.toEpochDay)
+
     val timestamp = AllSupportedOuterClass.AllSupported.Timestamp.newBuilder
     val time = LocalDateTime.now
-    timestamp.setSeconds(time.getSecond)
+    timestamp.setSeconds(time.toEpochSecond(ZoneOffset.UTC))
     timestamp.setNanos(time.getNano)
+
     build.setLocalDateTime(timestamp)
     val uuid = UUID.randomUUID
     build.setUuid(uuid.toString)
@@ -65,7 +66,6 @@ class AllSupportedOuterClassTest extends FunSuite with MustMatchers {
     val encoded = output.toByteArray
 
     val base64 = Base64.getEncoder().encode(encoded)
-    println(new String(base64))
 
     decode(output.toByteArray) match {
       case Left(err) => fail(err.toString())
@@ -83,7 +83,7 @@ class AllSupportedOuterClassTest extends FunSuite with MustMatchers {
         all.ldt mustBe time
         all.uuid mustBe uuid
         all.currency mustBe Currency.USD
-        all.bd mustBe new BigDecimal("1.234")
+        all.bd.compare(new BigDecimal("1.234")) mustBe 0
         all.int2 mustBe 2
         all.either mustBe Right(77)
 
@@ -93,7 +93,18 @@ class AllSupportedOuterClassTest extends FunSuite with MustMatchers {
         child.d mustBe Some(55555)
         child.i mustBe None
 
+
+        val bonesEncoded = encode(all)
+
+        val javaAllSupported = AllSupportedOuterClass.AllSupported.parseFrom(bonesEncoded)
+
+
+        javaAllSupported mustBe build.build()
+
       }
+
+
+
     }
 
 
